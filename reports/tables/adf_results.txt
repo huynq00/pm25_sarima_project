@@ -1,0 +1,12 @@
+Augmented Dickey-Fuller Test Results
+========================================
+ADF Statistic: -20.993873
+p-value:       0.000000
+Used lag:      1
+N observations: 1459
+Critical values:
+  1%: -3.435
+  5%: -2.864
+  10%: -2.568
+
+Conclusion: Series is STATIONARY
