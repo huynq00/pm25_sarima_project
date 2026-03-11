@@ -8,3 +8,41 @@ __pycache__
 *.pywz
 *.pyzw
 *.pyzwz
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Optional: bỏ comment nếu không muốn commit dữ liệu/ kết quả tạo lại được
+# data/interim/
+# data/processed/
+# reports/figures/
+# reports/tables/
