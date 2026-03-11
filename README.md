@@ -11,6 +11,7 @@ Dự án phân tích chuỗi thời gian và dự báo nồng độ PM2.5 (bụi
 
 - [Tổng quan](#tổng-quan)
 - [Cài đặt](#cài-đặt)
+- [EDA (Notebook)](#eda-notebook--bước-1-bắt-buộc)
 - [Chạy Pipeline](#chạy-pipeline)
 - [Dashboard Web](#dashboard-web)
 - [Cấu trúc dự án](#cấu-trúc-dự-án)
@@ -64,27 +65,39 @@ Nguồn tham khảo: UCI Machine Learning Repository, Kaggle, PRSA.
 
 ---
 
+## EDA (Notebook) – Bước 1 bắt buộc
+
+**Phải chạy notebook EDA trước** khi chạy `python main.py`. Notebook gộp **EDA** và **tiền xử lý** (đọc raw, datetime, xử lý missing, lưu cleaned_data và figures).
+
+```bash
+# Mở và chạy toàn bộ notebook (Jupyter / VS Code / Cursor)
+notebooks/01_EDA.ipynb
+```
+
+Sau khi chạy xong: `data/interim/cleaned_data.csv` và `reports/figures/01_eda/*.png` được tạo. Nếu chưa có `cleaned_data.csv`, `main.py` sẽ báo lỗi và thoát.
+
+---
+
 ## Chạy Pipeline
 
-Chạy toàn bộ pipeline từ tiền xử lý đến đánh giá:
+**Luồng:** (1) EDA notebook → (2) `python main.py` → (3) `python export_demo_data.py` (nếu dùng dashboard) → (4) `streamlit run app.py`.
 
 ```bash
 python main.py
 ```
 
-Pipeline thực hiện 4 bước:
+Pipeline (sau khi đã có cleaned_data từ EDA):
 
-| Bước | Mô-đun | Mô tả |
-|------|--------|-------|
-| 1 | `src/data_prep.py` | Đọc dữ liệu, tạo datetime index, xử lý missing (interpolation), lưu EDA |
-| 2 | `src/factor_analysis.py` | FA (principal, varimax), Scree plot, trích xuất 3 nhân tố |
-| 3 | `src/sarima_model.py` | Gộp theo ngày, phân rã chuỗi, ADF, ACF/PACF, auto_arima |
-| 4 | `src/evaluation.py` | Dự báo test, tính RMSE/MAE/MAPE, residual diagnostics |
+| Bước | File / Mô-đun | Mô tả |
+|------|----------------|-------|
+| 1 | `notebooks/01_EDA.ipynb` | EDA + tiền xử lý → cleaned_data.csv + 01_eda figures |
+| 2 | `src/factor_analysis.py` | FA (principal, varimax), Scree plot, 3 nhân tố → fa_data.csv, 02_fa, tables |
+| 3 | `src/sarima_model.py` | Gộp daily, decomposition, ADF, ACF/PACF, auto_arima → sarima_model.joblib, 03_arima |
+| 4 | `src/evaluation.py` | Dự báo test, RMSE/MAE/MAPE, actual vs pred, residual diagnostics → 04_eval, demo_* |
 
-### Chạy từng bước riêng lẻ
+### Chạy từng bước riêng lẻ (sau khi đã có cleaned_data)
 
 ```bash
-python src/data_prep.py
 python src/factor_analysis.py
 python src/sarima_model.py
 python src/evaluation.py
@@ -125,29 +138,31 @@ Trình duyệt mở tại `http://localhost:8501`.
 
 ```
 pm25_sarima_project/
-├── main.py                 # Điểm vào pipeline chính
+├── main.py                 # Điểm vào pipeline (yêu cầu cleaned_data từ EDA)
 ├── app.py                  # Streamlit dashboard
 ├── export_demo_data.py     # Xuất dữ liệu demo cho dashboard
-├── requirements.txt        # Phụ thuộc Python
+├── requirements.txt
 ├── README.md
-├── DEMO_WEB.md             # Hướng dẫn chạy dashboard
+├── .gitignore
+│
+├── notebooks/
+│   └── 01_EDA.ipynb        # Bước 1: EDA + tiền xử lý → cleaned_data.csv + 01_eda figures
 │
 ├── src/
-│   ├── data_prep.py        # Bước 1: Tiền xử lý dữ liệu
 │   ├── factor_analysis.py  # Bước 2: Phân tích nhân tố
 │   ├── sarima_model.py     # Bước 3: Mô hình SARIMA
 │   └── evaluation.py       # Bước 4: Đánh giá mô hình
 │
 ├── data/
-│   ├── raw/                # Dữ liệu gốc (CSV)
-│   ├── interim/            # cleaned_data.csv
-│   └── processed/          # fa_data.csv, sarima_model.joblib, demo_*.csv/json
+│   ├── raw/                # Dữ liệu gốc (CSV) – đặt file PRSA vào đây
+│   ├── interim/            # cleaned_data.csv (output từ EDA)
+│   └── processed/          # fa_data.csv, sarima_model.joblib, demo_*.csv, demo_params.json
 │
 └── reports/
-    ├── DATA_REPORT.md      # Báo cáo chi tiết dữ liệu và phương pháp
-    ├── tables/             # factor_loadings.csv, evaluation_metrics.csv, adf_results.*
+    ├── DATA_REPORT.md      # Báo cáo dữ liệu và phương pháp
+    ├── tables/             # factor_loadings.csv, evaluation_metrics.csv, adf_results.*, factor_interpretation.txt
     └── figures/
-        ├── 01_eda/         # pm25_time_series.png, correlation_heatmap.png
+        ├── 01_eda/         # Biểu đồ EDA (missing, boxplot, theo tháng/giờ, rolling, ACF/PACF, …)
         ├── 02_fa/          # scree_plot.png, factor_loadings_heatmap.png
         ├── 03_arima/       # decomposition.png, acf_pacf.png
         └── 04_eval/        # actual_vs_predicted.png, residual_diagnostics.png
@@ -157,12 +172,12 @@ pm25_sarima_project/
 
 ## Phương pháp nghiên cứu
 
-### 1. Tiền xử lý (`data_prep.py`)
+### 1. EDA & Tiền xử lý (`notebooks/01_EDA.ipynb`)
 
-- Tạo datetime index từ `year`, `month`, `day`, `hour`
-- Xử lý missing: **interpolation theo thời gian** (thay vì drop) để giữ tính liên tục
-- Forward/backward fill cho các vị trí biên
-- Xuất biểu đồ EDA: chuỗi PM2.5 theo thời gian, ma trận tương quan
+- Đọc raw CSV; tạo datetime index từ `year`, `month`, `day`, `hour` (hoặc cột `datetime`/`date`)
+- EDA: missing summary, boxplot/distribution PM2.5, theo tháng/giờ, rolling mean/std, ACF/PACF, histogram, scatter với PM2.5, KMO/Bartlett, decomposition, seasonal plot, time series, correlation heatmap
+- Xử lý missing: **interpolation theo thời gian** + forward/backward fill
+- Lưu `cleaned_data.csv` và toàn bộ figure vào `reports/figures/01_eda/`
 
 ### 2. Phân tích nhân tố (`factor_analysis.py`)
 
@@ -222,7 +237,6 @@ Chi tiết thêm: xem `reports/DATA_REPORT.md`.
 ## Tài liệu tham khảo
 
 - `reports/DATA_REPORT.md` – Báo cáo dữ liệu, phương pháp và dàn ý báo cáo/slide
-- `DEMO_WEB.md` – Hướng dẫn chạy dashboard và quay video demo
 
 ---
 

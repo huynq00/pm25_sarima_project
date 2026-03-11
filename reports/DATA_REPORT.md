@@ -77,30 +77,39 @@ Do đó, dự án sử dụng **nội suy (Interpolation)** thay vì loại bỏ
 
 ## 5. QUY TRÌNH TIỀN XỬ LÝ (PREPROCESSING PIPELINE)
 
+Toàn bộ quy trình tiền xử lý được thực hiện trong **`notebooks/01_EDA.ipynb`** (gộp EDA và data prep).
+
 1. **Đọc dữ liệu**  
-   - Đọc file CSV từ `data/raw/`.
+   - Đọc file CSV từ `data/raw/` (file đầu tiên có đuôi .csv).
 
 2. **Tạo index thời gian**  
-   - Gộp các cột `year`, `month`, `day`, `hour` thành cột datetime và đặt làm index.  
-   - Sắp xếp theo thời gian.
+   - Gộp các cột `year`, `month`, `day`, `hour` thành datetime và đặt làm index; sắp xếp theo thời gian.  
+   - Nếu không có các cột trên: dùng cột `datetime`, `date`, `Date` hoặc `timestamp` (nếu có).
 
 3. **Xử lý missing values**  
-   - Nội suy theo thời gian cho tất cả biến số.  
+   - Nội suy theo thời gian (`interpolate(method="time")`) cho tất cả biến số.  
    - Forward/backward fill cho các vị trí còn thiếu.
 
 4. **Lưu dữ liệu đã làm sạch**  
-   - Xuất ra `data/interim/cleaned_data.csv`.
+   - Xuất ra `data/interim/cleaned_data.csv` (sau khi bỏ cột phụ chỉ dùng cho EDA như month, hour).
 
 ---
 
-## 6. KẾT QUẢ EDA VÀ BIỂU ĐỒ TƯƠNG QUAN
+## 6. KẾT QUẢ EDA VÀ BIỂU ĐỒ
 
-- **Biểu đồ PM2.5 theo thời gian:** `reports/figures/01_eda/pm25_time_series.png`  
-  - Thể hiện biến động PM2.5 theo thời gian.
+Tất cả biểu đồ EDA được tạo trong **`notebooks/01_EDA.ipynb`** và lưu tại `reports/figures/01_eda/`.
 
-- **Ma trận tương quan:** `reports/figures/01_eda/correlation_heatmap.png`  
-  - Thể hiện tương quan giữa PM2.5 và các biến khác.  
-  - Giúp nhận diện các biến có liên quan mạnh với PM2.5.
+- **Missing value summary:** `missing_summary.png` – bảng và biểu đồ % missing theo cột.
+- **PM2.5 – boxplot & distribution:** `pm25_boxplot_distribution.png`.
+- **PM2.5 theo tháng:** `pm25_by_month.png`, `pm25_box_by_month.png`.
+- **PM2.5 theo giờ:** `pm25_by_hour.png` – trung bình ± std theo giờ trong ngày.
+- **Rolling mean / std:** `pm25_rolling_mean_std.png` – cửa sổ 7 ngày.
+- **ACF / PACF (PM2.5 hourly):** `acf_pacf_pm25.png`.
+- **Histogram các biến chính:** `histograms_main_vars.png`.
+- **Scatter PM2.5 vs biến:** `scatter_pm25_vs_vars.png`.
+- **KMO & Bartlett:** in trong notebook – kiểm tra phù hợp dữ liệu cho Factor Analysis.
+- **Decomposition & seasonal:** `decomposition_pm25_daily.png`, `seasonal_plot_pm25_by_month.png`.
+- **Chuỗi PM2.5 và ma trận tương quan:** `pm25_time_series.png`, `correlation_heatmap.png`.
 
 ---
 
@@ -155,9 +164,13 @@ Biểu đồ ACF/PACF: `reports/figures/03_arima/acf_pacf.png`. Dự án dùng *
 
 | Bước | File | Mô tả |
 |------|------|-------|
-| Tiền xử lý | `src/data_prep.py` | Load dữ liệu, tạo datetime index, xử lý missing, xuất EDA |
-| Phân tích nhân tố | `src/factor_analysis.py` | FA, scree plot, factor loadings, diễn giải nhân tố |
-| Mô hình SARIMA | `src/sarima_model.py` | Decomposition, ADF, ACF/PACF, auto_arima |
+| Tiền xử lý + EDA | `notebooks/01_EDA.ipynb` | Đọc raw, datetime index, EDA đầy đủ, xử lý missing, lưu cleaned_data + 01_eda figures |
+| Pipeline chính | `main.py` | Kiểm tra cleaned_data có sẵn, gọi FA → SARIMA → Evaluation |
+| Phân tích nhân tố | `src/factor_analysis.py` | Đọc cleaned_data, FA (principal, varimax), scree plot, lưu fa_data.csv + 02_fa + tables |
+| Mô hình SARIMA | `src/sarima_model.py` | Đọc fa_data, gộp daily, decomposition, ADF, ACF/PACF, auto_arima, lưu sarima_model.joblib + 03_arima |
+| Đánh giá | `src/evaluation.py` | Đọc model + fa_data, dự báo test, RMSE/MAE/MAPE, residual diagnostics, lưu 04_eval + demo_* |
+| Dữ liệu demo (dashboard) | `export_demo_data.py` | Xuất demo_predictions.csv, demo_residuals.csv, demo_params.json cho app |
+| Dashboard | `app.py` | Streamlit: 4 trang (Tổng quan, Nhân tố, Dự báo, Đánh giá) |
 
 ---
 
@@ -198,7 +211,7 @@ Biểu đồ ACF/PACF: `reports/figures/03_arima/acf_pacf.png`. Dự án dùng *
 
 3. **Methodology (Phương pháp)**
    - Nguồn dữ liệu và mô tả biến
-   - Tiền xử lý (missing values, interpolation)
+   - Tiền xử lý trong EDA notebook (missing values, interpolation theo thời gian)
    - Factor Analysis: phương pháp, số nhân tố, phép quay
    - SARIMA: phân rã chuỗi, ADF, ACF/PACF, auto_arima
    - Đánh giá: RMSE, MAE, MAPE, residual diagnostics
