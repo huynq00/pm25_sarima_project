@@ -1,0 +1,11 @@
+Time Index Check (cleaned_data.csv)
+===============================
+
+Index range: 2013-03-01 00:00:00 -> 2017-02-28 23:00:00
+Index unique: True
+Inferred freq: h
+
+Expected hourly length: 35064
+Missing timestamps (hourly grid): 0
+
+Duplicated timestamps: 0

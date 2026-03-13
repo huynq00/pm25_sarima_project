@@ -1,32 +1,28 @@
-KẾT LUẬN: CÁC NHÓM NGUYÊN NHÂN CHÍNH ẢNH HƯỞNG ĐẾN PM2.5
+FACTOR INTERPRETATION (Varimax)
 ============================================================
 
-Dựa trên ma trận Factor Loadings (sau phép quay Varimax), mỗi nhân tố
-đại diện cho một nhóm biến môi trường/khí tượng có tương quan chặt với nhau.
-Các biến có |loading| > 0.4 được coi là đóng góp đáng kể vào nhân tố đó.
+Quy ước:
+- |loading| >= 0.4: đóng góp đáng kể
+- Top (+): các biến tương quan cùng chiều với nhân tố
+- Top (−): các biến tương quan ngược chiều với nhân tố
 
----
+Factor1 (suggested theme: Emission/Pollution)
+------------------------------------------------------------
+Top (+): PM10 (+0.88), CO (+0.85), SO2 (+0.75), NO2 (+0.75)
+Top (−): WSPM (-0.17), TEMP (-0.17), O3 (-0.10)
+Diễn giải (+): bụi mịn PM10, cacbon monoxit, lưu huỳnh đioxit, nitơ đioxit
+Diễn giải (−): tốc độ gió, nhiệt độ, ozon
 
-Factor1:
-  Biến chính: PM10 (0.88), CO (0.85), SO2 (0.75), NO2 (0.74)
-  Diễn giải: Nhóm bụi mịn PM10, cacbon monoxit, lưu huỳnh đioxit, nitơ đioxit
+Factor2 (suggested theme: Meteorology)
+------------------------------------------------------------
+Top (+): DEWP (+0.94), TEMP (+0.92), O3 (+0.53)
+Top (−): PRES (-0.91)
+Diễn giải (+): điểm sương, nhiệt độ, ozon
+Diễn giải (−): áp suất
 
-Factor2:
-  Biến chính: DEWP (0.94), TEMP (0.92), PRES (-0.91), O3 (0.53)
-  Diễn giải: Nhóm điểm sương, nhiệt độ, áp suất, ozon
-
-Factor3:
-  Biến chính: WSPM (0.84), O3 (0.69), NO2 (-0.52)
-  Diễn giải: Nhóm tốc độ gió, ozon, nitơ đioxit
-
----
-KẾT LUẬN TỔNG HỢP:
-Các nhân tố trên phản ánh các nguồn ảnh hưởng khác nhau đến PM2.5:
-- Yếu tố ô nhiễm (PM10, SO2, NO2, CO) thường tương quan với hoạt động
-  giao thông, công nghiệp, đốt nhiên liệu.
-- Yếu tố khí tượng (TEMP, PRES, DEWP, RAIN, WSPM) ảnh hưởng đến
-  khuếch tán và tích tụ ô nhiễm trong không khí.
-- O3 thường phản ánh phản ứng quang hóa, liên quan điều kiện ánh sáng.
-
-Các nhân tố này được đưa vào mô hình SARIMA dưới dạng biến ngoại sinh (exog)
-để cải thiện độ chính xác dự báo PM2.5.
+Factor3 (suggested theme: Emission/Pollution)
+------------------------------------------------------------
+Top (+): WSPM (+0.84), O3 (+0.69)
+Top (−): NO2 (-0.52)
+Diễn giải (+): tốc độ gió, ozon
+Diễn giải (−): nitơ đioxit

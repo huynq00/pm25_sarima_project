@@ -1,0 +1,23 @@
+KMO and Bartlett's Test Results for Factor Analysis
+=================================================
+
+Variables used: PM10, SO2, NO2, CO, O3, TEMP, PRES, DEWP, RAIN, WSPM
+
+Missing handling for FA vars: interpolate(method='time') + ffill/bfill
+
+KMO overall: 0.7354
+KMO per variable:
+  - PM10: 0.7478
+  - SO2: 0.8538
+  - NO2: 0.7573
+  - CO: 0.7948
+  - O3: 0.7150
+  - TEMP: 0.6916
+  - PRES: 0.8651
+  - DEWP: 0.6469
+  - RAIN: 0.3520
+  - WSPM: 0.5496
+
+Bartlett's test of sphericity:
+  Chi-square: 221496.8819
+  p-value: 0.000000
