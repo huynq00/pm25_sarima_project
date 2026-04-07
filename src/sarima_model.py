@@ -12,10 +12,12 @@ This module:
 """
 
 from pathlib import Path
+from time import perf_counter
 from typing import Tuple
 
 import joblib
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from pmdarima import auto_arima
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
@@ -146,9 +148,118 @@ def train_test_split(
     return y_train, y_test, exog_train, exog_test
 
 
+def compute_error_metrics(y_true: pd.Series, y_pred: np.ndarray) -> dict:
+    """Compute RMSE/MAE/MAPE for model selection."""
+    y_true_arr = np.asarray(y_true).flatten()
+    y_pred_arr = np.asarray(y_pred).flatten()
+    mask = ~(np.isnan(y_true_arr) | np.isnan(y_pred_arr))
+    y_true_arr, y_pred_arr = y_true_arr[mask], y_pred_arr[mask]
+    rmse = float(np.sqrt(np.mean((y_true_arr - y_pred_arr) ** 2)))
+    mae = float(np.mean(np.abs(y_true_arr - y_pred_arr)))
+    mape = float(np.mean(np.abs((y_true_arr - y_pred_arr) / (y_true_arr + 1e-10))) * 100)
+    return {"RMSE": rmse, "MAE": mae, "MAPE": mape}
+
+
+def tune_seasonal_period(
+    y_train_full: pd.Series,
+    exog_train_full: pd.DataFrame,
+    m_min: int,
+    m_max: int,
+    val_ratio: float,
+    output_csv: Path,
+) -> int:
+    """
+    Search seasonal period m in [m_min, m_max] using time-ordered validation.
+    Returns best m by MAE (then RMSE).
+    """
+    if m_min < 1 or m_max < m_min:
+        raise ValueError(f"Invalid m range: [{m_min}, {m_max}]")
+    if not (0 < val_ratio < 0.5):
+        raise ValueError("val_ratio should be in (0, 0.5) for robust split")
+
+    n = len(y_train_full)
+    split_idx = int(n * (1 - val_ratio))
+    y_subtrain = y_train_full.iloc[:split_idx]
+    y_val = y_train_full.iloc[split_idx:]
+    exog_subtrain = exog_train_full.iloc[:split_idx] if exog_train_full is not None else None
+    exog_val = exog_train_full.iloc[split_idx:] if exog_train_full is not None else None
+
+    rows = []
+    print(f"Tuning seasonal period m from {m_min} to {m_max}...")
+    print(f"Sub-train: {len(y_subtrain)} days, Validation: {len(y_val)} days")
+
+    for m in range(m_min, m_max + 1):
+        t0 = perf_counter()
+        try:
+            model = auto_arima(
+                y_subtrain,
+                X=exog_subtrain.values if exog_subtrain is not None else None,
+                seasonal=True,
+                m=m,
+                stepwise=True,
+                suppress_warnings=True,
+                error_action="ignore",
+                trace=False,
+            )
+            y_val_pred = model.predict(
+                n_periods=len(y_val),
+                X=exog_val.values if exog_val is not None else None,
+            )
+            metrics = compute_error_metrics(y_val, y_val_pred)
+            elapsed = perf_counter() - t0
+            row = {
+                "m": m,
+                "order": str(model.order),
+                "seasonal_order": str(model.seasonal_order),
+                "aic": float(model.aic()),
+                "MAE": metrics["MAE"],
+                "RMSE": metrics["RMSE"],
+                "MAPE": metrics["MAPE"],
+                "elapsed_sec": round(elapsed, 2),
+                "status": "ok",
+            }
+            rows.append(row)
+            print(
+                f"m={m:2d} | MAE={row['MAE']:.3f} RMSE={row['RMSE']:.3f} "
+                f"MAPE={row['MAPE']:.2f}% | order={row['order']} x {row['seasonal_order']}"
+            )
+        except Exception as e:
+            elapsed = perf_counter() - t0
+            rows.append(
+                {
+                    "m": m,
+                    "order": "",
+                    "seasonal_order": "",
+                    "aic": np.nan,
+                    "MAE": np.nan,
+                    "RMSE": np.nan,
+                    "MAPE": np.nan,
+                    "elapsed_sec": round(elapsed, 2),
+                    "status": f"error: {e}",
+                }
+            )
+            print(f"m={m:2d} | error: {e}")
+
+    output_csv.parent.mkdir(parents=True, exist_ok=True)
+    result_df = pd.DataFrame(rows)
+    result_df.to_csv(output_csv, index=False)
+    ok_df = result_df[result_df["status"] == "ok"].copy()
+    if ok_df.empty:
+        raise RuntimeError("All seasonal period candidates failed during tuning")
+    ok_df = ok_df.sort_values(["MAE", "RMSE", "aic"], ascending=[True, True, True])
+    best_m = int(ok_df.iloc[0]["m"])
+    print(f"Saved seasonal-period search results to {output_csv}")
+    print(f"Selected best m={best_m} (by MAE, then RMSE, then AIC)")
+    return best_m
+
+
 def run_sarima_pipeline(
     test_ratio: float = 0.2,
     seasonal_period: int = 7,
+    auto_tune_seasonal_period: bool = True,
+    seasonal_period_min: int = 1,
+    seasonal_period_max: int = 31,
+    tune_val_ratio: float = 0.2,
     dpi: int = 300,
 ) -> object:
     """
@@ -202,8 +313,19 @@ def run_sarima_pipeline(
     y_train, y_test, exog_train, exog_test = train_test_split(daily, test_ratio)
     print(f"Train: {len(y_train)} days, Test: {len(y_test)} days")
 
+    if auto_tune_seasonal_period:
+        best_m = tune_seasonal_period(
+            y_train_full=y_train,
+            exog_train_full=exog_train,
+            m_min=seasonal_period_min,
+            m_max=seasonal_period_max,
+            val_ratio=tune_val_ratio,
+            output_csv=tables_dir / "seasonal_period_search.csv",
+        )
+        seasonal_period = best_m
+
     # auto_arima
-    print("Running auto_arima (may take a few minutes)...")
+    print(f"Running final auto_arima with seasonal_period={seasonal_period} (may take a few minutes)...")
     exog_arr = exog_train.values if exog_train is not None else None
     model = auto_arima(
         y_train,
@@ -213,7 +335,7 @@ def run_sarima_pipeline(
         stepwise=True,
         suppress_warnings=True,
         error_action="ignore",
-        trace=False,
+        trace=True,
     )
     print(f"Best model: {model.order} x {model.seasonal_order}")
 
