@@ -142,17 +142,61 @@ if page == "1. Tổng quan & Khám phá":
 
         with col2:
             st.subheader("🔢 Gauge PM2.5")
-            last_pm25 = float(daily["PM2.5"].iloc[-1])
-            color = get_who_color(last_pm25)
-            fig_g = go.Figure(go.Indicator(
-                mode="gauge+number",
-                value=last_pm25,
-                title={"text": "PM2.5 (μg/m³)"},
-                gauge={"axis": {"range": [0, 200]}, "bar": {"color": color}, "threshold": {"line": {"color": "red"}, "value": 100}},
-            ))
-            fig_g.update_layout(height=180, margin=dict(l=20, r=20, t=40, b=10))
-            st.plotly_chart(fig_g, use_container_width=True)
-            st.caption("WHO: Xanh≤25 | Vàng≤50 | Cam≤100 | Đỏ>100")
+
+            daily_reset = daily.reset_index()
+            date_col = daily_reset.columns[0]
+            available_dates = pd.to_datetime(daily_reset[date_col]).dt.date.tolist()
+
+            if "pm25_selected_date" not in st.session_state:
+                st.session_state.pm25_selected_date = available_dates[-1]
+
+            c1, c2 = st.columns(2)
+
+            with c1:
+                if st.button("Ngày mới nhất", use_container_width=True):
+                    st.session_state.pm25_selected_date = available_dates[-1]
+
+            with c2:
+                if st.button("Ngày trước đó", use_container_width=True):
+                    current_date = st.session_state.pm25_selected_date
+                    if current_date in available_dates:
+                        current_idx = available_dates.index(current_date)
+                        if current_idx > 0:
+                            st.session_state.pm25_selected_date = available_dates[current_idx - 1]
+
+            selected_date = st.date_input(
+                "Chọn ngày",
+                min_value=available_dates[0],
+                max_value=available_dates[-1],
+                key="pm25_selected_date",
+            )
+
+            selected_row = daily_reset[
+                pd.to_datetime(daily_reset[date_col]).dt.date == selected_date
+            ]
+
+            if selected_row.empty:
+                st.warning("Không có dữ liệu cho ngày đã chọn.")
+            else:
+                selected_pm25 = float(selected_row["PM2.5"].iloc[0])
+                color = get_who_color(selected_pm25)
+
+                fig_g = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=selected_pm25,
+                    title={"text": f"PM2.5 (μg/m³) - {selected_date.strftime('%d/%m/%Y')}"},
+                    gauge={
+                        "axis": {"range": [0, 200]},
+                        "bar": {"color": color},
+                        "threshold": {
+                            "line": {"color": "red"},
+                            "value": 100
+                        },
+                    },
+                ))
+                fig_g.update_layout(height=220, margin=dict(l=20, r=20, t=40, b=10))
+                st.plotly_chart(fig_g, use_container_width=True)
+                st.caption("WHO: Xanh≤25 | Vàng≤50 | Cam≤100 | Đỏ>100")
 
         with col3:
             st.subheader("📈 Lịch sử PM2.5 (4 năm)")
