@@ -16,6 +16,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
+from lstm_model import has_tensorflow, train_lstm_on_daily_pm25
 
 # --- Cấu hình trang ---
 st.set_page_config(
@@ -96,6 +97,12 @@ def load_demo_residuals():
     if not path.exists():
         return None
     return pd.read_csv(path)["residual"].values
+
+
+@st.cache_resource(show_spinner=False)
+def run_lstm_cached(pm25_series, look_back=14, epochs=50):
+    """Cached wrapper to avoid retraining on unchanged inputs."""
+    return train_lstm_on_daily_pm25(pm25_series, look_back=look_back, epochs=epochs)
 
 
 def get_who_color(pm25):
@@ -259,11 +266,12 @@ elif page == "2. Khai phá Nhân tố":
 
 # --- Page 3: Dự báo & Phân tích Kịch bản ---
 elif page == "3. Dự báo & Phân tích Kịch bản":
-    st.header("📉 Dự báo & Phân tích Kịch bản (SARIMA)")
-    st.markdown("Mô hình SARIMA kết hợp nhân tố ngoại sinh.")
+    st.header("📉 Dự báo & Phân tích Kịch bản (SARIMA + LSTM)")
+    st.markdown("So sánh SARIMA (ngoại sinh) với LSTM học chuỗi PM2.5.")
 
     pred_df = load_demo_predictions()
     params = load_demo_params()
+    daily = load_daily_data()
 
     if pred_df is None:
         st.warning("Chưa có dữ liệu dự báo. Chạy: `python export_demo_data.py` rồi chạy lại app.")
@@ -297,6 +305,40 @@ elif page == "3. Dự báo & Phân tích Kịch bản":
         )
         fig.update_layout(height=450, xaxis_title="Ngày", yaxis_title="PM2.5 (μg/m³)")
         st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("So sánh với LSTM")
+        with st.expander("Thiết lập LSTM", expanded=False):
+            look_back = st.slider("Số ngày quan sát trước (look_back)", 7, 30, 14, 1)
+            epochs = st.slider("Epoch huấn luyện", 10, 150, 50, 10)
+
+        if daily is None or "PM2.5" not in daily.columns:
+            st.warning("Không có dữ liệu PM2.5 daily để huấn luyện LSTM.")
+        elif not has_tensorflow():
+            st.info("Chưa cài TensorFlow/Keras. Cài thêm bằng: `pip install tensorflow`.")
+        else:
+            pm25_series = daily["PM2.5"].dropna()
+            with st.spinner("Đang huấn luyện LSTM..."):
+                lstm_result = run_lstm_cached(pm25_series, look_back=look_back, epochs=epochs)
+
+            if lstm_result is None:
+                st.warning("Dữ liệu chưa đủ để huấn luyện LSTM với cấu hình hiện tại.")
+            else:
+                fig_lstm = go.Figure()
+                fig_lstm.add_trace(go.Scatter(x=dates, y=actual, name="Thực tế (SARIMA test)", line=dict(color="#2E86AB")))
+                fig_lstm.add_trace(go.Scatter(x=dates, y=predicted, name="SARIMA", line=dict(color="#E94F37")))
+                fig_lstm.add_trace(
+                    go.Scatter(
+                        x=lstm_result["dates"],
+                        y=lstm_result["predicted"],
+                        name="LSTM",
+                        line=dict(color="#2CA02C"),
+                    )
+                )
+                fig_lstm.update_layout(height=420, xaxis_title="Ngày", yaxis_title="PM2.5 (μg/m³)")
+                st.plotly_chart(fig_lstm, use_container_width=True)
+
+                rmse_lstm = float(np.sqrt(lstm_result["mse"]))
+                st.metric("RMSE LSTM (test 20%)", f"{rmse_lstm:.2f}")
 
         st.subheader("What-if: Phân tích kịch bản đột biến")
         st.caption("Mô phỏng: khi nhân tố thay đổi, dự báo thay đổi tương ứng (ước lượng từ độ nhạy).")
