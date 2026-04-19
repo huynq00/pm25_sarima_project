@@ -1,101 +1,107 @@
-# PM2.5 Time Series Analysis: Factor Analysis & SARIMA
+# PM2.5 Time Series: Factor Analysis & SARIMA
 
-**Môn học:** Phân tích dữ liệu lớn - IT2036-CH201  
-**Dự án cuối kỳ:** Time Series Analysis and Forecasting of PM2.5: An SARIMA and Factor Analysis Approach  
+**Môn học:** Phân tích dữ liệu lớn — IT2036-CH201  
+**Đề tài:** Time Series Analysis and Forecasting of PM2.5 — SARIMA và Phân tích nhân tố  
 
-Dự án phân tích chuỗi thời gian và dự báo nồng độ PM2.5 (bụi mịn) kết hợp **Phân tích Nhân tố (Factor Analysis)** và mô hình **SARIMA** với biến ngoại sinh (exogenous variables). Bao gồm pipeline xử lý dữ liệu, mô hình dự báo, đánh giá và dashboard tương tác bằng Streamlit.
+Dự án phân tích chuỗi thời gian nồng độ **PM2.5** (bụi mịn), kết hợp **phân tích nhân tố (FA)** để rút gọn biến môi trường/khí tượng và mô hình **SARIMA** có **biến ngoại sinh** (điểm số nhân tố). Pipeline gồm tiền xử lý, ước lượng mô hình, đánh giá và **dashboard Streamlit** tương tác.
 
 ---
 
-## Mục lục
+## Nội dung
 
-- [Tổng quan](#tổng-quan)
+- [Tính năng chính](#tính-năng-chính)
+- [Công nghệ](#công-nghệ)
 - [Cài đặt](#cài-đặt)
-- [EDA (Notebook)](#eda-notebook--bước-1-bắt-buộc)
-- [Chạy Pipeline](#chạy-pipeline)
-- [Dashboard Web](#dashboard-web)
-- [Cấu trúc dự án](#cấu-trúc-dự-án)
-- [Phương pháp nghiên cứu](#phương-pháp-nghiên-cứu)
-- [Nguồn dữ liệu](#nguồn-dữ-liệu)
-- [Kết quả chính](#kết-quả-chính)
+- [Dữ liệu đầu vào](#dữ-liệu-đầu-vào)
+- [Luồng chạy chuẩn](#luồng-chạy-chuẩn)
+- [Notebook bổ sung](#notebook-bổ-sung)
+- [Dashboard](#dashboard)
+- [Cấu trúc thư mục](#cấu-trúc-thư-mục)
+- [Phương pháp (tóm tắt)](#phương-pháp-tóm-tắt)
+- [Kết quả tham chiếu](#kết-quả-tham-chiếu)
+- [Tài liệu tham khảo trong repo](#tài-liệu-tham-khảo-trong-repo)
 
 ---
 
-## Tổng quan
+## Tính năng chính
 
-### Mục tiêu
+| Hạng mục | Mô tả |
+|----------|--------|
+| **Phân tích nhân tố** | Chuẩn hóa 10 biến (PM10, SO₂, NO₂, CO, O₃, TEMP, PRES, DEWP, RAIN, WSPM), FA (principal + varimax), chọn số nhân tố theo **Kaiser** (mặc định 3 nhân tố) |
+| **SARIMA / SARIMAX** | Gộp **theo ngày**, `auto_arima` (pmdarima), mùa vụ **tuần** `m=7`, exog = Factor1–3 |
+| **Đánh giá** | RMSE, MAE, MAPE; biểu đồ actual vs predicted; chẩn đoán phần dư (histogram, Q-Q, Ljung-Box) |
+| **Ứng dụng web** | Streamlit: khám phá dữ liệu, nhân tố, dự báo và what-if trên nhân tố |
 
-- **Phân tích nhân tố:** Rút gọn 10 biến môi trường/khí tượng (PM10, SO2, NO2, CO, O3, TEMP, PRES, DEWP, RAIN, WSPM) thành 3 nhân tố tiềm ẩn giải thích nguyên nhân ảnh hưởng đến PM2.5.
-- **Dự báo chuỗi thời gian:** Xây dựng mô hình SARIMA với biến ngoại sinh (3 nhân tố) để dự báo PM2.5.
-- **Đánh giá:** Đo lường RMSE, MAE, MAPE và kiểm định phần dư (Ljung-Box, Q-Q plot).
+---
 
-### Công nghệ sử dụng
+## Công nghệ
 
-- **Python 3.8+**
-- **pandas, numpy** – Xử lý dữ liệu
-- **factor_analyzer, scikit-learn** – Phân tích nhân tố
-- **pmdarima, statsmodels** – Mô hình SARIMA và phân tích chuỗi thời gian
-- **streamlit, plotly** – Dashboard tương tác
+- **Python 3.8+** (khuyến nghị 3.10+)
+- **pandas**, **numpy** — xử lý dữ liệu  
+- **factor_analyzer**, **scikit-learn** — phân tích nhân tố  
+- **pmdarima**, **statsmodels** — SARIMA và kiểm định chuỗi  
+- **matplotlib**, **seaborn** — hình ảnh báo cáo  
+- **streamlit**, **plotly** — dashboard  
+- **tensorflow** (tùy chọn) — LSTM trong `src/lstm_model.py` và notebook mở rộng  
+- **xgboost** (tùy chọn) — baseline trong `notebooks/05_multi_scene.ipynb`
+
+Chi tiết phiên bản: `requirements.txt`.
 
 ---
 
 ## Cài đặt
 
-### 1. Tạo môi trường ảo và cài đặt phụ thuộc
-
 ```bash
+git clone <repository-url>
 cd pm25_sarima_project
+
 python -m venv .venv
-source .venv/bin/activate   # Linux/macOS
-# Hoặc: .venv\Scripts\activate   # Windows
+# Windows:
+.venv\Scripts\activate
+# Linux / macOS:
+# source .venv/bin/activate
 
 pip install -r requirements.txt
 ```
 
-### 2. Dữ liệu đầu vào
+---
 
-Đặt file CSV dữ liệu gốc tại `data/raw/`. Dự án sử dụng **PRSA (Beijing Multi-Site Air-Quality Data)** – trạm **Guanyuan**, Bắc Kinh:
+## Dữ liệu đầu vào
 
-- **Khoảng thời gian:** 01/03/2013 – 28/02/2017  
-- **Độ phân giải:** theo giờ (hourly)  
-- **Cột cần có:** `PM2.5`, `PM10`, `SO2`, `NO2`, `CO`, `O3`, `TEMP`, `PRES`, `DEWP`, `RAIN`, `wd`, `WSPM`, `year`, `month`, `day`, `hour`
+- **Nguồn:** PRSA (Beijing Multi-Site Air-Quality Data), trạm **Guanyuan**.  
+- **Thời gian:** 01/03/2013 — 28/02/2017, độ phân giải **theo giờ**.  
+- **Đặt file CSV gốc** vào `data/raw/` (ví dụ `PRSA_Data_Guanyuan_20130301-20170228.csv`).  
 
-File mẫu: `data/raw/PRSA_Data_Guanyuan_20130301-20170228.csv`  
-Nguồn tham khảo: UCI Machine Learning Repository, Kaggle, PRSA.
+Cột tối thiểu cần có trong pipeline hiện tại: `PM2.5`, `PM10`, `SO2`, `NO2`, `CO`, `O3`, `TEMP`, `PRES`, `DEWP`, `RAIN`, `wd`, `WSPM`, và các trường thời gian (`year`, `month`, `day`, `hour` hoặc tương đương để tạo chỉ mục thời gian — xem `notebooks/01_EDA.ipynb`).
 
 ---
 
-## EDA (Notebook) – Bước 1 bắt buộc
+## Luồng chạy chuẩn
 
-**Phải chạy notebook EDA trước** khi chạy `python main.py`. Notebook gộp **EDA** và **tiền xử lý** (đọc raw, datetime, xử lý missing, lưu cleaned_data và figures).
+Thứ tự bắt buộc: **EDA notebook** → **`main.py`** → (tùy chọn) **`export_demo_data.py`** → **`streamlit run app.py`**.
 
-```bash
-# Mở và chạy toàn bộ notebook (Jupyter / VS Code / Cursor)
+### Bước 1 — EDA và tiền xử lý (bắt buộc)
+
+```text
 notebooks/01_EDA.ipynb
 ```
 
-Sau khi chạy xong: `data/interim/cleaned_data.csv` và `reports/figures/01_eda/*.png` được tạo. Nếu chưa có `cleaned_data.csv`, `main.py` sẽ báo lỗi và thoát.
+Sinh ra: `data/interim/cleaned_data.csv`, hình trong `reports/figures/01_eda/`.  
+Không có `cleaned_data.csv` thì `main.py` sẽ dừng và báo lỗi.
 
----
-
-## Chạy Pipeline
-
-**Luồng:** (1) EDA notebook → (2) `python main.py` → (3) `python export_demo_data.py` (nếu dùng dashboard) → (4) `streamlit run app.py`.
+### Bước 2 — Pipeline tự động
 
 ```bash
 python main.py
 ```
 
-Pipeline (sau khi đã có cleaned_data từ EDA):
+| Bước | Mô-đun | Đầu ra chính |
+|------|--------|----------------|
+| 2 | `src/factor_analysis.py` | `data/processed/fa_data.csv`, `reports/figures/02_fa/`, bảng loadings |
+| 3 | `src/sarima_model.py` | `data/processed/sarima_model.joblib`, `reports/figures/03_arima/` |
+| 4 | `src/evaluation.py` | `reports/figures/04_eval/`, `reports/tables/evaluation_metrics.csv`, `data/processed/demo_*.csv` |
 
-| Bước | File / Mô-đun | Mô tả |
-|------|----------------|-------|
-| 1 | `notebooks/01_EDA.ipynb` | EDA + tiền xử lý → cleaned_data.csv + 01_eda figures |
-| 2 | `src/factor_analysis.py` | FA (principal, varimax), Scree plot, 3 nhân tố → fa_data.csv, 02_fa, tables |
-| 3 | `src/sarima_model.py` | Gộp daily, decomposition, ADF, ACF/PACF, auto_arima → sarima_model.joblib, 03_arima |
-| 4 | `src/evaluation.py` | Dự báo test, RMSE/MAE/MAPE, actual vs pred, residual diagnostics → 04_eval, demo_* |
-
-### Chạy từng bước riêng lẻ (sau khi đã có cleaned_data)
+Chạy từng bước riêng (sau khi đã có `cleaned_data.csv`):
 
 ```bash
 python src/factor_analysis.py
@@ -105,139 +111,105 @@ python src/evaluation.py
 
 ---
 
-## Dashboard Web
+## Notebook bổ sung
 
-Ứng dụng Streamlit cung cấp giao diện tương tác với kết quả phân tích và dự báo.
+| Notebook | Mục đích |
+|----------|-----------|
+| `notebooks/02_factor_analysis.ipynb` | Đi sâu bước FA (song song với `factor_analysis.py`) |
+| `notebooks/03_sarima_model.ipynb` | Đi sâu SARIMA (song song với `sarima_model.py`) |
+| `notebooks/04_evaluation.ipynb` | Đi sâu đánh giá (song song với `evaluation.py`) |
+| `notebooks/05_multi_scene.ipynb` | **Mở rộng:** so sánh SARIMAX, Random Forest / XGBoost (lag + nhân tố), LSTM, hybrid SARIMAX + LSTM trên phần dư; đọc `data/processed/fa_data.csv` trong repo |
 
-### Chuẩn bị dữ liệu demo
-
-Trước khi chạy dashboard, cần tạo dữ liệu demo (tránh lỗi load model trực tiếp):
-
-```bash
-python export_demo_data.py
-```
-
-### Chạy dashboard
-
-```bash
-streamlit run app.py
-```
-
-Trình duyệt mở tại `http://localhost:8501`.
-
-### Cấu trúc 4 trang dashboard
-
-1. **Tổng quan & Khám phá** – Bản đồ trạm, Gauge PM2.5, lịch sử PM2.5, ma trận tương quan  
-2. **Khai phá Nhân tố** – Scree plot, bảng Factor Loadings, heatmap  
-3. **Dự báo & Phân tích Kịch bản** – Tham số SARIMA, biểu đồ dự báo (95% CI), What-if (điều chỉnh nhân tố)  
-4. **Đánh giá & Chẩn đoán** – RMSE/MAE/MAPE, Residual diagnostics (histogram, Q-Q, Ljung-Box)
+Bản đã chạy sẵn (tham khảo output): `notebooks/execute/*_executed.ipynb`.
 
 ---
 
-## Cấu trúc dự án
+## Dashboard
 
-```
+1. Tạo file demo cho app (tránh lỗi khi load trực tiếp model pickle/joblib trên một số môi trường):
+
+   ```bash
+   python export_demo_data.py
+   ```
+
+2. Chạy giao diện:
+
+   ```bash
+   streamlit run app.py
+   ```
+
+Mở trình duyệt tại `http://localhost:8501`.
+
+**Các trang chính:** Tổng quan & khám phá → Phân tích nhân tố → Dự báo & kịch bản → Đánh giá & chẩn đoán phần dư.
+
+---
+
+## Cấu trúc thư mục
+
+```text
 pm25_sarima_project/
-├── main.py                 # Điểm vào pipeline (yêu cầu cleaned_data từ EDA)
-├── app.py                  # Streamlit dashboard
-├── export_demo_data.py     # Xuất dữ liệu demo cho dashboard
+├── main.py                 # Pipeline: FA → SARIMA → Evaluation
+├── app.py                  # Dashboard Streamlit
+├── export_demo_data.py     # Xuất CSV demo cho dashboard
 ├── requirements.txt
 ├── README.md
-├── .gitignore
 │
 ├── notebooks/
-│   └── 01_EDA.ipynb        # Bước 1: EDA + tiền xử lý → cleaned_data.csv + 01_eda figures
+│   ├── 01_EDA.ipynb        # Bước 1: EDA + cleaned_data (bắt buộc trước main.py)
+│   ├── 02_factor_analysis.ipynb
+│   ├── 03_sarima_model.ipynb
+│   ├── 04_evaluation.ipynb
+│   ├── 05_multi_scene.ipynb
+│   └── execute/            # Bản notebook đã execute (tham khảo)
 │
 ├── src/
-│   ├── factor_analysis.py  # Bước 2: Phân tích nhân tố
-│   ├── sarima_model.py     # Bước 3: Mô hình SARIMA
-│   └── evaluation.py       # Bước 4: Đánh giá mô hình
+│   ├── factor_analysis.py
+│   ├── sarima_model.py
+│   ├── evaluation.py
+│   └── lstm_model.py       # Tiện ích LSTM (pipeline phụ / thử nghiệm)
 │
 ├── data/
-│   ├── raw/                # Dữ liệu gốc (CSV) – đặt file PRSA vào đây
-│   ├── interim/            # cleaned_data.csv (output từ EDA)
-│   └── processed/          # fa_data.csv, sarima_model.joblib, demo_*.csv, demo_params.json
+│   ├── raw/                # CSV gốc (PRSA)
+│   ├── interim/            # cleaned_data.csv
+│   └── processed/          # fa_data.csv, model, demo_*.csv
 │
 └── reports/
-    ├── DATA_REPORT.md      # Báo cáo dữ liệu và phương pháp
-    ├── tables/             # factor_loadings.csv, evaluation_metrics.csv, adf_results.*, factor_interpretation.txt
+    ├── DATA_REPORT.md      # Báo cáo chi tiết dữ liệu & phương pháp
+    ├── tables/             # metrics, loadings, ADF, v.v.
     └── figures/
-        ├── 01_eda/         # Biểu đồ EDA (missing, boxplot, theo tháng/giờ, rolling, ACF/PACF, …)
-        ├── 02_fa/          # scree_plot.png, factor_loadings_heatmap.png
-        ├── 03_arima/       # decomposition.png, acf_pacf.png
-        └── 04_eval/        # actual_vs_predicted.png, residual_diagnostics.png
+        ├── 01_eda/
+        ├── 02_fa/
+        ├── 03_arima/
+        └── 04_eval/
 ```
 
 ---
 
-## Phương pháp nghiên cứu
+## Phương pháp (tóm tắt)
 
-### 1. EDA & Tiền xử lý (`notebooks/01_EDA.ipynb`)
+1. **EDA:** làm sạch, nội suy missing theo thời gian, thống kê mô tả và hình ảnh hóa.  
+2. **FA:** giảm chiều biến môi trường → Factor1–3 làm biến ngoại sinh cho chuỗi ngày.  
+3. **SARIMAX:** `auto_arima` với mùa vụ 7 ngày; thứ tự mô hình điển hình do thuật toán chọn (ví dụ đã gặp **(2,1,1)×(1,0,0,7)** với exog Factor1–3).  
+4. **Đánh giá:** tách train/test theo thời gian (tỷ lệ test mặc định trong code), chỉ số và kiểm tra phần dư.
 
-- Đọc raw CSV; tạo datetime index từ `year`, `month`, `day`, `hour` (hoặc cột `datetime`/`date`)
-- EDA: missing summary, boxplot/distribution PM2.5, theo tháng/giờ, rolling mean/std, ACF/PACF, histogram, scatter với PM2.5, KMO/Bartlett, decomposition, seasonal plot, time series, correlation heatmap
-- Xử lý missing: **interpolation theo thời gian** + forward/backward fill
-- Lưu `cleaned_data.csv` và toàn bộ figure vào `reports/figures/01_eda/`
-
-### 2. Phân tích nhân tố (`factor_analysis.py`)
-
-- Chuẩn hóa (z-score) các biến PM10, SO2, NO2, CO, O3, TEMP, PRES, DEWP, RAIN, WSPM
-- Phân tích nhân tố: method `principal`, rotation `varimax`
-- Chọn số nhân tố bằng **Kaiser criterion** (eigenvalue > 1), mặc định 3 nhân tố
-- Xuất: `factor_loadings.csv`, Scree plot, heatmap loadings, file diễn giải
-
-**Ý nghĩa 3 nhân tố:**
-
-| Nhân tố | Nhóm | Biến chính |
-|---------|------|------------|
-| Factor 1 | Ô nhiễm phát thải (giao thông, công nghiệp) | PM10, CO, SO2, NO2 |
-| Factor 2 | Khí tượng | TEMP, PRES, DEWP, O3 |
-| Factor 3 | Khuếch tán | WSPM, O3, NO2 |
-
-### 3. Mô hình SARIMA (`sarima_model.py`)
-
-- Gộp dữ liệu theo ngày (mean)
-- Phân rã chuỗi: Trend, Seasonal (period=7), Residual
-- Kiểm định ADF (stationarity)
-- Đồ thị ACF/PACF để hỗ trợ chọn tham số
-- **auto_arima** (pmdarima): tìm bộ tham số tối ưu theo AIC/BIC
-- Mô hình: **SARIMA (2,1,1)×(1,0,0,7)** với exog = Factor1, Factor2, Factor3
-
-### 4. Đánh giá (`evaluation.py`)
-
-- Chỉ số: **RMSE**, **MAE**, **MAPE**
-- Biểu đồ Actual vs Predicted
-- Residual diagnostics: histogram, Q-Q plot, kiểm định Ljung-Box (phần dư không còn tự tương quan)
+Chi tiết định nghĩa biến, hình và bảng: **`reports/DATA_REPORT.md`**.
 
 ---
 
-## Nguồn dữ liệu
+## Kết quả tham chiếu
 
-| Thuộc tính | Mô tả |
-|------------|-------|
-| Dataset | PRSA (Beijing Multi-Site Air-Quality Data) |
-| Trạm đo | Guanyuan (Quan Nguyên, Bắc Kinh) |
-| Khoảng thời gian | 01/03/2013 – 28/02/2017 |
-| Độ phân giải | Theo giờ |
-| Biến chính | PM2.5 (mục tiêu), PM10, SO2, NO2, CO, O3, TEMP, PRES, DEWP, RAIN, WSPM |
+Giá trị phụ thuộc seed / phiên bản thư viện; tham khảo file sinh bởi pipeline:
+
+- **`reports/tables/evaluation_metrics.csv`** — RMSE, MAE, MAPE trên tập test.  
+- Ví dụ đã ghi nhận: RMSE ≈ **37.8**, MAE ≈ **30.1**, MAPE ≈ **69.7%** (daily, test ~20%).  
+- Phần dư: kiểm tra Ljung-Box với p-value > 0.05 tại các lag xét (mục tiêu: không còn tự tương quan rõ).
 
 ---
 
-## Kết quả chính
+## Tài liệu tham khảo trong repo
 
-- **Mô hình:** SARIMA (2,1,1)×(1,0,0,7) với 3 nhân tố làm biến ngoại sinh
-- **Đánh giá (test set):** RMSE ≈ 37.8, MAE ≈ 30.1, MAPE ≈ 69.7%
-- **Chu kỳ mùa vụ:** 7 ngày (tuần) – phù hợp nhịp hoạt động giao thông, công nghiệp
-- **Residual diagnostics:** Phần dư gần chuẩn, không còn tự tương quan (Ljung-Box p-value > 0.05)
-
-Chi tiết thêm: xem `reports/DATA_REPORT.md`.
+- **`reports/DATA_REPORT.md`** — Báo cáo dữ liệu, phương pháp và gợi ý trình bày báo cáo/slide.
 
 ---
 
-## Tài liệu tham khảo
-
-- `reports/DATA_REPORT.md` – Báo cáo dữ liệu, phương pháp và dàn ý báo cáo/slide
-
----
-
-**UIT** | Phân tích dữ liệu lớn - IT2036-CH201 | Dự án cuối kỳ
+**UIT** | Phân tích dữ liệu lớn — IT2036-CH201 | Đồ án cuối kỳ

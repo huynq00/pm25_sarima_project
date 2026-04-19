@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 import pandas as pd
 
+from multi_model_compare import run_multi_model_comparison
 from sarima_model import aggregate_to_daily, load_fa_data, train_test_split
 
 
@@ -73,6 +74,19 @@ def main():
     with open(params_path, "w") as f:
         json.dump({"order": list(order), "seasonal_order": list(seasonal)}, f)
     print(f"Saved {params_path}")
+
+    # So sánh nhiều mô hình (RF, XGB, LSTM, hybrid) — dùng cho Streamlit trang 3
+    cmp_path = ROOT / "data" / "processed" / "demo_models_comparison.csv"
+    mtr_path = ROOT / "data" / "processed" / "demo_models_metrics.json"
+    try:
+        wide, metrics_multi = run_multi_model_comparison(0.2)
+        wide.to_csv(cmp_path, index=False)
+        print(f"Saved {cmp_path}")
+        with open(mtr_path, "w", encoding="utf-8") as f:
+            json.dump(metrics_multi, f, indent=2, ensure_ascii=False)
+        print(f"Saved {mtr_path}")
+    except Exception as e:
+        print(f"Không xuất demo_models_comparison (bỏ qua): {e}")
 
 
 if __name__ == "__main__":
