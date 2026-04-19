@@ -1,9 +1,9 @@
-# PM2.5 Time Series: Factor Analysis & SARIMA
+# PM2.5 Time Series: Factor Analysis & SARIMAX
 
 **Môn học:** Phân tích dữ liệu lớn — IT2036-CH201  
-**Đề tài:** Time Series Analysis and Forecasting of PM2.5 — SARIMA và Phân tích nhân tố  
+**Đề tài:** Time Series Analysis and Forecasting of PM2.5 — SARIMAX và Phân tích nhân tố  
 
-Dự án phân tích chuỗi thời gian nồng độ **PM2.5** (bụi mịn), kết hợp **phân tích nhân tố (FA)** để rút gọn biến môi trường/khí tượng và mô hình **SARIMA** có **biến ngoại sinh** (điểm số nhân tố). Pipeline gồm tiền xử lý, ước lượng mô hình, đánh giá và **dashboard Streamlit** tương tác.
+Dự án phân tích chuỗi thời gian nồng độ **PM2.5** (bụi mịn), kết hợp **phân tích nhân tố (FA)** để rút gọn biến môi trường/khí tượng và mô hình **SARIMAX** (ARIMA mùa vụ + **biến ngoại sinh** Factor1–3). Pipeline gồm tiền xử lý, ước lượng mô hình, đánh giá và **dashboard Streamlit** tương tác.
 
 ---
 
@@ -28,7 +28,7 @@ Dự án phân tích chuỗi thời gian nồng độ **PM2.5** (bụi mịn), k
 | Hạng mục | Mô tả |
 |----------|--------|
 | **Phân tích nhân tố** | Chuẩn hóa 10 biến (PM10, SO₂, NO₂, CO, O₃, TEMP, PRES, DEWP, RAIN, WSPM), FA (principal + varimax), chọn số nhân tố theo **Kaiser** (mặc định 3 nhân tố) |
-| **SARIMA / SARIMAX** | Gộp **theo ngày**, `auto_arima` (pmdarima), mùa vụ **tuần** `m=7`, exog = Factor1–3 |
+| **SARIMAX** | Gộp **theo ngày**, `auto_arima` (pmdarima), mùa vụ **tuần** `m=7`, exog = Factor1–3 |
 | **Đánh giá** | RMSE, MAE, MAPE; biểu đồ actual vs predicted; chẩn đoán phần dư (histogram, Q-Q, Ljung-Box) |
 | **Ứng dụng web** | Streamlit: khám phá dữ liệu, nhân tố, dự báo và what-if trên nhân tố |
 
@@ -39,7 +39,7 @@ Dự án phân tích chuỗi thời gian nồng độ **PM2.5** (bụi mịn), k
 - **Python 3.8+** (khuyến nghị 3.10+)
 - **pandas**, **numpy** — xử lý dữ liệu  
 - **factor_analyzer**, **scikit-learn** — phân tích nhân tố  
-- **pmdarima**, **statsmodels** — SARIMA và kiểm định chuỗi  
+- **pmdarima**, **statsmodels** — SARIMAX / kiểm định chuỗi  
 - **matplotlib**, **seaborn** — hình ảnh báo cáo  
 - **streamlit**, **plotly** — dashboard  
 - **tensorflow** (tùy chọn) — LSTM / hybrid trong `export_demo_data.py` (so sánh đa mô hình) và `notebooks/05_multi_scene.ipynb`  

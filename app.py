@@ -1,6 +1,6 @@
 """
 Dashboard Khoa học & Cảnh báo môi trường PM2.5
-Streamlit Demo - Factor Analysis + SARIMA
+Streamlit Demo - Factor Analysis + SARIMAX
 """
 
 import sys
@@ -20,7 +20,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 # --- Cấu hình trang ---
 st.set_page_config(
-    page_title="PM2.5 Dashboard | Factor Analysis & SARIMA",
+    page_title="PM2.5 Dashboard | Factor Analysis & SARIMAX",
     page_icon="🌫️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -146,7 +146,7 @@ def get_who_color(pm25):
 
 # --- Sidebar navigation ---
 st.sidebar.title("🌫️ PM2.5 Dashboard")
-st.sidebar.markdown("*Factor Analysis & SARIMA*")
+st.sidebar.markdown("*Factor Analysis & SARIMAX*")
 page = st.sidebar.radio(
     "Chọn trang",
     [
@@ -504,7 +504,7 @@ else:
         for i, (k, v) in enumerate(metrics.iloc[0].items()):
             with [col1, col2, col3][i % 3]:
                 st.metric(k, f"{float(v):.2f}")
-        st.caption("SARIMA với biến ngoại sinh (Factor Analysis) giúp cải thiện dự báo so với ARIMA thuần.")
+        st.caption("SARIMAX với biến ngoại sinh (Factor Analysis) giúp cải thiện dự báo so với ARIMA/SARIMA thuần.")
     else:
         st.warning("Chưa có evaluation_metrics.csv")
 
@@ -525,4 +525,4 @@ else:
         st.plotly_chart(fig, use_container_width=True)
 
 st.sidebar.markdown("---")
-st.sidebar.caption("PM2.5 | Factor Analysis & SARIMA | UIT")
+st.sidebar.caption("PM2.5 | Factor Analysis & SARIMAX | UIT")
