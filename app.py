@@ -16,6 +16,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 from lstm_model import has_tensorflow, train_lstm_on_daily_pm25
 
 # --- Cấu hình trang ---
@@ -99,10 +100,45 @@ def load_demo_residuals():
     return pd.read_csv(path)["residual"].values
 
 
+@st.cache_data
+def load_demo_models_comparison():
+    """Wide CSV: actual + SARIMAX / RF / XGB / LSTM / hybrid (từ export_demo_data)."""
+    path = DATA_PROCESSED / "demo_models_comparison.csv"
+    if not path.exists():
+        return None
+    df = pd.read_csv(path)
+    df["date"] = pd.to_datetime(df["date"])
+    return df
+
+
+@st.cache_data
+def load_demo_models_metrics():
+    path = DATA_PROCESSED / "demo_models_metrics.json"
+    if not path.exists():
+        return None
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 @st.cache_resource(show_spinner=False)
 def run_lstm_cached(pm25_series, look_back=14, epochs=50):
     """Cached wrapper to avoid retraining on unchanged inputs."""
     return train_lstm_on_daily_pm25(pm25_series, look_back=look_back, epochs=epochs)
+
+
+def compute_error_metrics(actual: np.ndarray, predicted: np.ndarray) -> dict[str, float]:
+    """RMSE / MAE / MAPE giữa thực tế và một chuỗi dự báo (cùng độ dài)."""
+    y = np.asarray(actual, dtype=float).ravel()
+    p = np.asarray(predicted, dtype=float).ravel()
+    m = ~(np.isnan(y) | np.isnan(p))
+    y, p = y[m], p[m]
+    if len(y) == 0:
+        return {"RMSE": float("nan"), "MAE": float("nan"), "MAPE": float("nan")}
+
+    rmse = float(np.sqrt(mean_squared_error(y, p)))
+    mae = float(mean_absolute_error(y, p))
+    mape = float(np.mean(np.abs((y - p) / (y + 1e-10))) * 100)
+    return {"RMSE": rmse, "MAE": mae, "MAPE": mape}
 
 
 def get_who_color(pm25):
@@ -266,93 +302,199 @@ elif page == "2. Khai phá Nhân tố":
 
 # --- Page 3: Dự báo & Phân tích Kịch bản ---
 elif page == "3. Dự báo & Phân tích Kịch bản":
-    st.header("📉 Dự báo & Phân tích Kịch bản (SARIMA + LSTM)")
-    st.markdown("So sánh SARIMA (ngoại sinh) với LSTM học chuỗi PM2.5.")
+    st.header("📉 Dự báo & Phân tích kịch bản")
+    st.markdown(
+        "So sánh nhiều mô hình trên **cùng tập test** (20% cuối, chuỗi ngày): "
+        "**SARIMAX** (Auto-ARIMA + nhân tố), **Random Forest / XGBoost** (lag PM2.5 + FA), "
+        "**LSTM** một biến, **Hybrid** (SARIMAX + LSTM trên phần dư). "
+        "Dữ liệu biểu đồ lấy từ `export_demo_data.py`."
+    )
 
+    cmp_df = load_demo_models_comparison()
+    metrics_multi = load_demo_models_metrics()
     pred_df = load_demo_predictions()
     params = load_demo_params()
     daily = load_daily_data()
 
-    if pred_df is None:
-        st.warning("Chưa có dữ liệu dự báo. Chạy: `python export_demo_data.py` rồi chạy lại app.")
+    if cmp_df is None and pred_df is None:
+        st.warning("Chưa có dữ liệu dự báo. Chạy: `python export_demo_data.py` rồi mở lại trang này.")
     else:
-        st.subheader("Bảng Điều khiển Tham số")
+        # --- Tổng quan chỉ số ---
+        st.subheader("📊 Tổng quan so sánh mô hình (test set)")
+        if metrics_multi:
+            rows = [{"Mô hình": k, **v} for k, v in metrics_multi.items()]
+            mdf = pd.DataFrame(rows).sort_values("RMSE", ascending=True)
+            st.dataframe(mdf.round({"RMSE": 2, "MAE": 2, "MAPE": 2}), use_container_width=True, hide_index=True)
+            fig_bar = px.bar(
+                mdf,
+                x="Mô hình",
+                y="RMSE",
+                color="Mô hình",
+                title="RMSE theo mô hình (càng thấp càng tốt)",
+            )
+            fig_bar.update_layout(height=380, xaxis_tickangle=-25, showlegend=False)
+            st.plotly_chart(fig_bar, use_container_width=True)
+            best = mdf.iloc[0]["Mô hình"]
+            st.success(f"Mô hình RMSE thấp nhất trên file hiện tại: **{best}** ({mdf.iloc[0]['RMSE']:.2f}).")
+        elif metrics_multi is None:
+            st.info("Chạy `python export_demo_data.py` để tạo `demo_models_metrics.json` (bảng đầy đủ).")
+
+        st.subheader("Tham số SARIMAX (Auto-ARIMA)")
         if params:
             o = params.get("order", [2, 1, 1])
             s = params.get("seasonal_order", [1, 0, 0, 7])
-            st.write(f"**ARIMA (p,d,q) × (P,D,Q,s)**: ({o[0]},{o[1]},{o[2]}) × ({s[0]},{s[1]},{s[2]},{s[3]})")
-        st.caption("Bộ tham số tối ưu do Auto-ARIMA tìm ra (AIC/BIC).")
-
-        st.subheader("Biểu đồ Dự báo")
-        dates = pred_df["date"]
-        actual = pred_df["actual"]
-        predicted = pred_df["predicted"]
-        ci_low = pred_df["ci_low"]
-        ci_high = pred_df["ci_high"]
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=dates, y=actual, name="Thực tế", line=dict(color="#2E86AB", width=2)))
-        fig.add_trace(go.Scatter(x=dates, y=predicted, name="Dự báo", line=dict(color="#E94F37", width=2)))
-        fig.add_trace(
-            go.Scatter(
-                x=list(dates) + list(dates)[::-1],
-                y=list(ci_high) + list(ci_low)[::-1],
-                fill="toself",
-                fillcolor="rgba(233,79,55,0.2)",
-                line=dict(color="rgba(255,255,255,0)"),
-                name="95% CI",
+            st.write(
+                f"**ARIMA (p,d,q) × (P,D,Q,s)**: ({o[0]},{o[1]},{o[2]}) × ({s[0]},{s[1]},{s[2]},{s[3]}) — mùa vụ tuần **m=7**."
             )
-        )
-        fig.update_layout(height=450, xaxis_title="Ngày", yaxis_title="PM2.5 (μg/m³)")
-        st.plotly_chart(fig, use_container_width=True)
+        st.caption("Cùng logic với pipeline `src/sarima_model.py`.")
 
-        st.subheader("So sánh với LSTM")
-        with st.expander("Thiết lập LSTM", expanded=False):
-            look_back = st.slider("Số ngày quan sát trước (look_back)", 7, 30, 14, 1)
-            epochs = st.slider("Epoch huấn luyện", 10, 150, 50, 10)
-
-        if daily is None or "PM2.5" not in daily.columns:
-            st.warning("Không có dữ liệu PM2.5 daily để huấn luyện LSTM.")
-        elif not has_tensorflow():
-            st.info("Chưa cài TensorFlow/Keras. Cài thêm bằng: `pip install tensorflow`.")
-        else:
-            pm25_series = daily["PM2.5"].dropna()
-            with st.spinner("Đang huấn luyện LSTM..."):
-                lstm_result = run_lstm_cached(pm25_series, look_back=look_back, epochs=epochs)
-
-            if lstm_result is None:
-                st.warning("Dữ liệu chưa đủ để huấn luyện LSTM với cấu hình hiện tại.")
-            else:
-                fig_lstm = go.Figure()
-                fig_lstm.add_trace(go.Scatter(x=dates, y=actual, name="Thực tế (SARIMA test)", line=dict(color="#2E86AB")))
-                fig_lstm.add_trace(go.Scatter(x=dates, y=predicted, name="SARIMA", line=dict(color="#E94F37")))
-                fig_lstm.add_trace(
+        # --- Biểu đồ đa mô hình ---
+        st.subheader("Biểu đồ dự báo đa mô hình")
+        if cmp_df is not None:
+            dates = cmp_df["date"]
+            actual = cmp_df["actual"]
+            model_options = {
+                "SARIMAX (+ FA exog)": ("pred_sarimax", True),
+                "Random Forest (lag + FA)": ("pred_rf", False),
+                "XGBoost (lag + FA)": ("pred_xgb", False),
+                "LSTM (univariate)": ("pred_lstm_uni", False),
+                "Hybrid SARIMAX + LSTM (phần dư)": ("pred_hybrid", False),
+            }
+            chosen = st.multiselect(
+                "Hiển thị đường dự báo",
+                list(model_options.keys()),
+                default=list(model_options.keys()),
+            )
+            palette = {
+                "SARIMAX (+ FA exog)": "#E94F37",
+                "Random Forest (lag + FA)": "#44AF69",
+                "XGBoost (lag + FA)": "#9B59B6",
+                "LSTM (univariate)": "#2CA02C",
+                "Hybrid SARIMAX + LSTM (phần dư)": "#F39C12",
+            }
+            fig_m = go.Figure()
+            fig_m.add_trace(
+                go.Scatter(
+                    x=dates,
+                    y=actual,
+                    name="Thực tế",
+                    line=dict(color="#2E86AB", width=2),
+                )
+            )
+            show_ci = "SARIMAX (+ FA exog)" in chosen
+            if show_ci and "ci_low" in cmp_df.columns and "ci_high" in cmp_df.columns:
+                fig_m.add_trace(
                     go.Scatter(
-                        x=lstm_result["dates"],
-                        y=lstm_result["predicted"],
-                        name="LSTM",
-                        line=dict(color="#2CA02C"),
+                        x=list(dates) + list(dates)[::-1],
+                        y=list(cmp_df["ci_high"]) + list(cmp_df["ci_low"])[::-1],
+                        fill="toself",
+                        fillcolor="rgba(233,79,55,0.15)",
+                        line=dict(color="rgba(255,255,255,0)"),
+                        name="95% CI (SARIMAX)",
                     )
                 )
-                fig_lstm.update_layout(height=420, xaxis_title="Ngày", yaxis_title="PM2.5 (μg/m³)")
-                st.plotly_chart(fig_lstm, use_container_width=True)
+            for label in chosen:
+                col, _ = model_options[label]
+                if col not in cmp_df.columns:
+                    continue
+                yv = cmp_df[col]
+                fig_m.add_trace(
+                    go.Scatter(
+                        x=dates,
+                        y=yv,
+                        name=label,
+                        line=dict(color=palette.get(label, "#888"), width=1.8),
+                    )
+                )
+            fig_m.update_layout(
+                height=480,
+                xaxis_title="Ngày",
+                yaxis_title="PM2.5 (μg/m³)",
+                legend=dict(orientation="h", yanchor="bottom", y=-0.35, x=0),
+            )
+            st.plotly_chart(fig_m, use_container_width=True)
+        elif pred_df is not None:
+            st.warning("Chỉ có `demo_predictions.csv` (SARIMAX). Chạy `export_demo_data.py` bản mới để có đủ mô hình.")
+            dates = pred_df["date"]
+            actual = pred_df["actual"]
+            predicted_base = pred_df["predicted"]
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=dates, y=actual, name="Thực tế", line=dict(color="#2E86AB", width=2)))
+            fig.add_trace(go.Scatter(x=dates, y=predicted_base, name="SARIMAX", line=dict(color="#E94F37", width=2)))
+            fig.add_trace(
+                go.Scatter(
+                    x=list(dates) + list(dates)[::-1],
+                    y=list(pred_df["ci_high"]) + list(pred_df["ci_low"])[::-1],
+                    fill="toself",
+                    fillcolor="rgba(233,79,55,0.2)",
+                    line=dict(color="rgba(255,255,255,0)"),
+                    name="95% CI",
+                )
+            )
+            fig.update_layout(height=450, xaxis_title="Ngày", yaxis_title="PM2.5 (μg/m³)")
+            st.plotly_chart(fig, use_container_width=True)
 
-                rmse_lstm = float(np.sqrt(lstm_result["mse"]))
-                st.metric("RMSE LSTM (test 20%)", f"{rmse_lstm:.2f}")
+        # --- What-if ---
+        st.subheader("What-if: phân tích kịch bản nhân tố")
+        st.markdown(
+            r"""
+            **Cách tính trong app (minh họa, không fit lại SARIMAX):**
 
-        st.subheader("What-if: Phân tích kịch bản đột biến")
-        st.caption("Mô phỏng: khi nhân tố thay đổi, dự báo thay đổi tương ứng (ước lượng từ độ nhạy).")
-        f1 = st.slider("Factor 1 (Ô nhiễm Công nghiệp/Giao thông)", 0.5, 1.5, 1.0, 0.05)
-        f2 = st.slider("Factor 2 (Khí hậu)", 0.5, 1.5, 1.0, 0.05)
-        f3 = st.slider("Factor 3 (Khuếch tán)", 0.5, 1.5, 1.0, 0.05)
-        # Ước lượng What-if: điều chỉnh dự báo theo hệ số nhân tố
-        adj = (f1 + f2 + f3) / 3
-        pred_adj = predicted * (0.7 + 0.3 * adj)
-        fig2 = go.Figure()
-        fig2.add_trace(go.Scatter(x=dates, y=actual, name="Thực tế", line=dict(color="#2E86AB")))
-        fig2.add_trace(go.Scatter(x=dates, y=pred_adj, name=f"Dự báo mô phỏng (F1={f1}, F2={f2}, F3={f3})", line=dict(color="#E94F37")))
-        fig2.update_layout(height=350, title="Dự báo khi thay đổi nhân tố (ước lượng)")
-        st.plotly_chart(fig2, use_container_width=True)
+            - Trung bình 3 thanh: $\bar{f} = (F_1 + F_2 + F_3) / 3$ (mặc định mỗi thanh = 1 → $\bar{f}=1$).
+            - Hệ số nhân lên dự báo SARIMAX gốc $\hat{y}^{\mathrm{sarimax}}$:
+            $$k = 0{,}7 + 0{,}3 \times \bar{f}$$
+            - Dự báo kịch bản: $\hat{y}^{\mathrm{scenario}} = k \cdot \hat{y}^{\mathrm{sarimax}}$.
+
+            Khi **tất cả thanh = 1** thì $k = 1$: đường kịch bản trùng SARIMAX. Kéo **cùng tăng** (ví dụ $\bar{f}=1{,}2$) thì $k=1{,}06$ — toàn bộ dự báo **cao hơn 6%**; kéo **cùng giảm** ($\bar{f}=0{,}8$) thì $k=0{,}94$ — **thấp hơn 6%**.
+
+            **Lưu ý:** Bảng *Tổng quan so sánh mô hình* phía trên lấy từ file export — **không** đổi theo slider. Chỉ các chỉ số trong khối dưới đây so sánh **thực tế vs SARIMAX gốc** và **thực tế vs đường kịch bản** (cập nhật khi bạn kéo).
+            """
+        )
+        if cmp_df is not None or pred_df is not None:
+            if cmp_df is not None:
+                dates_w = cmp_df["date"]
+                actual_w = cmp_df["actual"]
+                pred_w = cmp_df["pred_sarimax"]
+            else:
+                dates_w = pred_df["date"]
+                actual_w = pred_df["actual"]
+                pred_w = pred_df["predicted"]
+            f1 = st.slider("Factor 1 (ô nhiễm / giao thông)", 0.5, 1.5, 1.0, 0.05)
+            f2 = st.slider("Factor 2 (khí hậu)", 0.5, 1.5, 1.0, 0.05)
+            f3 = st.slider("Factor 3 (khuếch tán)", 0.5, 1.5, 1.0, 0.05)
+            adj = (f1 + f2 + f3) / 3
+            k_scale = 0.7 + 0.3 * adj
+            pred_adj = pred_w * k_scale
+            m_base = compute_error_metrics(actual_w.values, pred_w.values)
+            m_scen = compute_error_metrics(actual_w.values, pred_adj.values)
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("RMSE — SARIMAX gốc", f"{m_base['RMSE']:.2f}", help="So với PM2.5 thực tế trên tập test.")
+                st.metric("RMSE — kịch bản (slider)", f"{m_scen['RMSE']:.2f}", f"{m_scen['RMSE'] - m_base['RMSE']:+.2f} vs gốc")
+            with c2:
+                st.metric("MAE — SARIMAX gốc", f"{m_base['MAE']:.2f}")
+                st.metric("MAE — kịch bản", f"{m_scen['MAE']:.2f}", f"{m_scen['MAE'] - m_base['MAE']:+.2f} vs gốc")
+            with c3:
+                st.metric("MAPE — SARIMAX gốc", f"{m_base['MAPE']:.1f}%")
+                st.metric("MAPE — kịch bản", f"{m_scen['MAPE']:.1f}%", f"{m_scen['MAPE'] - m_base['MAPE']:+.2f} điểm % vs gốc")
+            st.caption(f"Hệ số nhân hiện tại **k = {k_scale:.4f}** (trung bình nhân tố **{adj:.3f}**).")
+            fig2 = go.Figure()
+            fig2.add_trace(go.Scatter(x=dates_w, y=actual_w, name="Thực tế", line=dict(color="#2E86AB")))
+            fig2.add_trace(
+                go.Scatter(x=dates_w, y=pred_w, name="SARIMAX gốc (k=1)", line=dict(color="#999", dash="dot"))
+            )
+            fig2.add_trace(
+                go.Scatter(
+                    x=dates_w,
+                    y=pred_adj,
+                    name=f"Kịch bản (F1={f1}, F2={f2}, F3={f3})",
+                    line=dict(color="#E94F37"),
+                )
+            )
+            fig2.update_layout(height=350, title="Thực tế vs SARIMAX vs kịch bản (minh họa)")
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.warning("Thiếu dữ liệu cho what-if.")
 
 # --- Page 4: Đánh giá & Chẩn đoán ---
 else:
