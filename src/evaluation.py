@@ -2,7 +2,7 @@
 Step 4: Evaluation & Reporting for PM2.5 Time Series Project
 
 This module:
-- Loads fitted SARIMA model and makes predictions on test set
+- Loads fitted SARIMAX model and makes predictions on test set
 - Calculates RMSE, MAE, MAPE
 - Plots Actual vs Predicted
 - Residual diagnostics (Ljung-Box, histogram, Q-Q plot)
@@ -17,7 +17,7 @@ import pandas as pd
 from statsmodels.graphics.gofplots import qqplot
 from statsmodels.stats.diagnostic import acorr_ljungbox
 
-from sarima_model import (
+from sarimax_model import (
     FACTOR_COLS,
     aggregate_to_daily,
     get_project_root,
@@ -26,9 +26,9 @@ from sarima_model import (
 )
 
 
-def load_sarima_model() -> dict:
-    """Load saved SARIMA model bundle from joblib."""
-    path = get_project_root() / "data" / "processed" / "sarima_model.joblib"
+def load_sarimax_model() -> dict:
+    """Load saved SARIMAX model bundle from joblib."""
+    path = get_project_root() / "data" / "processed" / "sarimax_model.joblib"
     if not path.exists():
         raise FileNotFoundError(f"Model not found: {path}")
     return joblib.load(path)
@@ -130,8 +130,8 @@ def run_evaluation_pipeline(
     eval_fig = root / "reports" / "figures" / "04_eval"
     tables_dir = root / "reports" / "tables"
 
-    print("Loading SARIMA model...")
-    bundle = load_sarima_model()
+    print("Loading SARIMAX model...")
+    bundle = load_sarimax_model()
     model = bundle["model"]
 
     print("Loading fa_data and preparing test set...")

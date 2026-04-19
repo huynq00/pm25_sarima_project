@@ -338,7 +338,7 @@ elif page == "3. Dự báo & Phân tích Kịch bản":
             st.write(
                 f"**ARIMA (p,d,q) × (P,D,Q,s)**: ({o[0]},{o[1]},{o[2]}) × ({s[0]},{s[1]},{s[2]},{s[3]}) — mùa vụ tuần **m=7**."
             )
-        st.caption("Cùng logic với pipeline `src/sarima_model.py`.")
+        st.caption("Cùng logic với pipeline `src/sarimax_model.py`.")
 
         # --- Biểu đồ đa mô hình ---
         st.subheader("Biểu đồ dự báo đa mô hình")

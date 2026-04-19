@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "src"))
 import pandas as pd
 
 from multi_model_compare import run_multi_model_comparison
-from sarima_model import aggregate_to_daily, load_fa_data, train_test_split
+from sarimax_model import aggregate_to_daily, load_fa_data, train_test_split
 
 
 def main():
@@ -25,7 +25,7 @@ def main():
     y_train, y_test, exog_train, exog_test = train_test_split(daily, 0.2)
 
     # Thử load model và lấy predictions
-    model_path = ROOT / "data" / "processed" / "sarima_model.joblib"
+    model_path = ROOT / "data" / "processed" / "sarimax_model.joblib"
     pred_path = ROOT / "data" / "processed" / "demo_predictions.csv"
     res_path = ROOT / "data" / "processed" / "demo_residuals.csv"
     params_path = ROOT / "data" / "processed" / "demo_params.json"

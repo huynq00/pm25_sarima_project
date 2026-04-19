@@ -138,7 +138,7 @@ Tất cả biểu đồ EDA được tạo trong **`notebooks/01_EDA.ipynb`** v�
 - **Seasonal (Mùa vụ):** biến động lặp theo chu kỳ
 - **Residual (Phần dư):** nhiễu ngẫu nhiên
 
-Trong dự án, phân rã dùng **period = 7** (chu kỳ tuần) cho dữ liệu daily. Biểu đồ: `reports/figures/03_arima/decomposition.png`.
+Trong dự án, phân rã dùng **period = 7** (chu kỳ tuần) cho dữ liệu daily. Biểu đồ: `reports/figures/03_sarimax/decomposition.png`.
 
 ### 8.2. Cách đọc đồ thị ACF và PACF
 
@@ -156,7 +156,7 @@ Trong dự án, phân rã dùng **period = 7** (chu kỳ tuần) cho dữ liệu
 - **PACF:** Gợi ý bậc **p** (AR) và **P** (seasonal AR). Đỉnh tại lag s, 2s, … → P > 0.
 - **m:** chu kỳ mùa vụ (m=7 cho daily, m=12 cho monthly).
 
-Biểu đồ ACF/PACF: `reports/figures/03_arima/acf_pacf.png`. Dự án dùng **auto_arima** để tìm bộ tham số tối ưu dựa trên AIC/BIC, kết quả: (2,1,1)×(1,0,0,7).
+Biểu đồ ACF/PACF: `reports/figures/03_sarimax/acf_pacf.png`. Dự án dùng **auto_arima** (SARIMAX với exog Factor1–3) để tìm bộ tham số tối ưu theo AIC/BIC, kết quả: (2,1,1)×(1,0,0,7).
 
 ---
 
@@ -167,7 +167,7 @@ Biểu đồ ACF/PACF: `reports/figures/03_arima/acf_pacf.png`. Dự án dùng *
 | Tiền xử lý + EDA | `notebooks/01_EDA.ipynb` | Đọc raw, datetime index, EDA đầy đủ, xử lý missing, lưu cleaned_data + 01_eda figures |
 | Pipeline chính | `main.py` | Kiểm tra cleaned_data có sẵn, gọi FA → SARIMA → Evaluation |
 | Phân tích nhân tố | `src/factor_analysis.py` | Đọc cleaned_data, FA (principal, varimax), scree plot, lưu fa_data.csv + 02_fa + tables |
-| Mô hình SARIMA | `src/sarima_model.py` | Đọc fa_data, gộp daily, decomposition, ADF, ACF/PACF, auto_arima, lưu sarima_model.joblib + 03_arima |
+| Mô hình SARIMAX | `src/sarimax_model.py` | Đọc fa_data, gộp daily, decomposition, ADF, ACF/PACF, auto_arima + exog, lưu sarimax_model.joblib + `03_sarimax/` |
 | Đánh giá | `src/evaluation.py` | Đọc model + fa_data, dự báo test, RMSE/MAE/MAPE, residual diagnostics, lưu 04_eval + demo_* |
 | Dữ liệu demo (dashboard) | `export_demo_data.py` | Xuất demo_predictions.csv, demo_residuals.csv, demo_params.json cho app |
 | Dashboard | `app.py` | Streamlit: 4 trang (Tổng quan, Nhân tố, Dự báo, Đánh giá) |

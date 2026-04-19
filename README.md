@@ -98,14 +98,14 @@ python main.py
 | Bước | Mô-đun | Đầu ra chính |
 |------|--------|----------------|
 | 2 | `src/factor_analysis.py` | `data/processed/fa_data.csv`, `reports/figures/02_fa/`, bảng loadings |
-| 3 | `src/sarima_model.py` | `data/processed/sarima_model.joblib`, `reports/figures/03_arima/` |
+| 3 | `src/sarimax_model.py` | `data/processed/sarimax_model.joblib`, `reports/figures/03_sarimax/` |
 | 4 | `src/evaluation.py` | `reports/figures/04_eval/`, `reports/tables/evaluation_metrics.csv`, `data/processed/demo_*.csv` |
 
 Chạy từng bước riêng (sau khi đã có `cleaned_data.csv`):
 
 ```bash
 python src/factor_analysis.py
-python src/sarima_model.py
+python src/sarimax_model.py
 python src/evaluation.py
 ```
 
@@ -116,7 +116,7 @@ python src/evaluation.py
 | Notebook | Mục đích |
 |----------|-----------|
 | `notebooks/02_factor_analysis.ipynb` | Đi sâu bước FA (song song với `factor_analysis.py`) |
-| `notebooks/03_sarima_model.ipynb` | Đi sâu SARIMA (song song với `sarima_model.py`) |
+| `notebooks/03_sarimax_model.ipynb` | Đi sâu SARIMAX (song song với `sarimax_model.py`) |
 | `notebooks/04_evaluation.ipynb` | Đi sâu đánh giá (song song với `evaluation.py`) |
 | `notebooks/05_multi_scene.ipynb` | **Mở rộng:** so sánh SARIMAX, Random Forest / XGBoost (lag + nhân tố), LSTM, hybrid SARIMAX + LSTM trên phần dư; đọc `data/processed/fa_data.csv` trong repo |
 
@@ -148,7 +148,7 @@ Mở trình duyệt tại `http://localhost:8501`.
 
 ```text
 pm25_sarima_project/
-├── main.py                 # Pipeline: FA → SARIMA → Evaluation
+├── main.py                 # Pipeline: FA → SARIMAX → Evaluation
 ├── app.py                  # Dashboard Streamlit
 ├── export_demo_data.py     # Xuất CSV demo cho dashboard
 ├── requirements.txt
@@ -157,14 +157,14 @@ pm25_sarima_project/
 ├── notebooks/
 │   ├── 01_EDA.ipynb        # Bước 1: EDA + cleaned_data (bắt buộc trước main.py)
 │   ├── 02_factor_analysis.ipynb
-│   ├── 03_sarima_model.ipynb
+│   ├── 03_sarimax_model.ipynb
 │   ├── 04_evaluation.ipynb
 │   ├── 05_multi_scene.ipynb
 │   └── execute/            # Bản notebook đã execute (tham khảo)
 │
 ├── src/
 │   ├── factor_analysis.py
-│   ├── sarima_model.py
+│   ├── sarimax_model.py
 │   ├── evaluation.py
 │   └── multi_model_compare.py   # So sánh RF / XGB / LSTM / hybrid (dùng bởi export_demo_data)
 │
@@ -179,7 +179,7 @@ pm25_sarima_project/
     └── figures/
         ├── 01_eda/
         ├── 02_fa/
-        ├── 03_arima/
+        ├── 03_sarimax/
         └── 04_eval/
 ```
 
@@ -189,7 +189,7 @@ pm25_sarima_project/
 
 1. **EDA:** làm sạch, nội suy missing theo thời gian, thống kê mô tả và hình ảnh hóa.  
 2. **FA:** giảm chiều biến môi trường → Factor1–3 làm biến ngoại sinh cho chuỗi ngày.  
-3. **SARIMAX:** `auto_arima` với mùa vụ 7 ngày; thứ tự mô hình điển hình do thuật toán chọn (ví dụ đã gặp **(2,1,1)×(1,0,0,7)** với exog Factor1–3).  
+3. **SARIMAX** (`src/sarimax_model.py`): `auto_arima` với exog Factor1–3, mùa vụ 7 ngày; thứ tự điển hình do AIC/BIC chọn (ví dụ **(2,1,1)×(1,0,0,7)**).  
 4. **Đánh giá:** tách train/test theo thời gian (tỷ lệ test mặc định trong code), chỉ số và kiểm tra phần dư.
 
 Chi tiết định nghĩa biến, hình và bảng: **`reports/DATA_REPORT.md`**.

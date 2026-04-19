@@ -2,7 +2,7 @@
 PM2.5 Time Series Analysis: Full Pipeline
 
 Step 1 = EDA notebook (chạy trước, tạo cleaned_data.csv).
-Step 2–4: Factor Analysis → SARIMA → Evaluation.
+Step 2–4: Factor Analysis → SARIMAX → Evaluation.
 """
 
 import sys
@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 from evaluation import run_evaluation_pipeline
 from factor_analysis import run_factor_analysis_pipeline
-from sarima_model import run_sarima_pipeline
+from sarimax_model import run_sarimax_pipeline
 
 
 def main() -> None:
@@ -32,8 +32,8 @@ def main() -> None:
     print("\n>>> Step 2: Factor Analysis")
     run_factor_analysis_pipeline()
 
-    print("\n>>> Step 3: SARIMA Modeling")
-    run_sarima_pipeline()
+    print("\n>>> Step 3: SARIMAX modeling")
+    run_sarimax_pipeline()
 
     print("\n>>> Step 4: Evaluation & Reporting")
     run_evaluation_pipeline()

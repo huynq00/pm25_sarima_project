@@ -13,7 +13,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
-from sarima_model import FACTOR_COLS, aggregate_to_daily, load_fa_data, train_test_split
+from sarimax_model import FACTOR_COLS, aggregate_to_daily, load_fa_data, train_test_split
 
 LAG_TABULAR = 14
 LSTM_LOOKBACK = 14
@@ -185,7 +185,7 @@ def run_multi_model_comparison(test_ratio: float = 0.2) -> tuple[pd.DataFrame, d
 
     import joblib
 
-    model_path = _project_root() / "data" / "processed" / "sarima_model.joblib"
+    model_path = _project_root() / "data" / "processed" / "sarimax_model.joblib"
     try:
         bundle = joblib.load(model_path)
         model = bundle["model"]

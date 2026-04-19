@@ -1,5 +1,7 @@
 """
-Step 3: SARIMA Modeling for PM2.5 Time Series Project
+Step 3: SARIMAX modeling for PM2.5 Time Series Project
+
+Seasonal ARIMA with exogenous regressors (Factor1–3 from FA).
 
 This module:
 - Reads fa_data.csv
@@ -7,7 +9,7 @@ This module:
 - Time series decomposition (Trend, Seasonality, Residuals)
 - ADF test for stationarity
 - ACF/PACF plots
-- auto_arima with exogenous factors
+- auto_arima with exogenous factors (SARIMAX)
 - Train/test split, fit, save model
 """
 
@@ -42,7 +44,7 @@ def load_fa_data() -> pd.DataFrame:
 def aggregate_to_daily(df: pd.DataFrame) -> pd.DataFrame:
     """
     Aggregate hourly data to daily (mean for numeric columns).
-    Required for baseline SARIMA (faster, daily seasonality m=7).
+    Required for SARIMAX on daily series (seasonality m=7).
     """
     numeric_cols = df.select_dtypes(include="number").columns.tolist()
     daily = df[numeric_cols].resample("D").mean()
@@ -108,7 +110,6 @@ def save_adf_results(results: dict, output_path: Path) -> None:
     text_path = output_path.with_suffix(".txt")
     with open(text_path, "w") as f:
         f.write("\n".join(lines))
-    # Also save key metrics to CSV
     csv_path = output_path.with_name("adf_results.csv")
     pd.DataFrame([{"adf_statistic": results["adf_statistic"], "p_value": results["p_value"]}]).to_csv(csv_path, index=False)
 
@@ -146,7 +147,7 @@ def train_test_split(
     return y_train, y_test, exog_train, exog_test
 
 
-def run_sarima_pipeline(
+def run_sarimax_pipeline(
     test_ratio: float = 0.2,
     seasonal_period: int = 7,
     dpi: int = 300,
@@ -157,13 +158,13 @@ def run_sarima_pipeline(
     2. Decomposition plot
     3. ADF test, save results
     4. ACF/PACF plot
-    5. auto_arima with exog (factors)
+    5. auto_arima with exog (SARIMAX)
     6. Train/test split, fit, save model
 
-    Returns the fitted ARIMA model.
+    Returns the fitted pmdarima model (SARIMAX when exog present).
     """
     root = get_project_root()
-    arima_fig = root / "reports" / "figures" / "03_arima"
+    fig_dir = root / "reports" / "figures" / "03_sarimax"
     tables_dir = root / "reports" / "tables"
     models_dir = root / "data" / "processed"
 
@@ -177,13 +178,11 @@ def run_sarima_pipeline(
         raise ValueError("PM2.5 column not found in fa_data")
     pm25 = daily["PM2.5"]
 
-    # Decomposition
     print("Running time series decomposition...")
-    decomp_path = arima_fig / "decomposition.png"
+    decomp_path = fig_dir / "decomposition.png"
     run_decomposition(pm25, decomp_path, period=seasonal_period, dpi=dpi)
     print(f"Saved decomposition to {decomp_path}")
 
-    # ADF test
     print("Running ADF test...")
     adf_results = run_adf_test(pm25)
     adf_path = tables_dir / "adf_results"
@@ -191,19 +190,16 @@ def run_sarima_pipeline(
     print(f"ADF p-value: {adf_results['p_value']:.6f}")
     print(f"Saved ADF results to {tables_dir}")
 
-    # ACF/PACF
     print("Plotting ACF & PACF...")
-    acf_path = arima_fig / "acf_pacf.png"
+    acf_path = fig_dir / "acf_pacf.png"
     plot_acf_pacf(pm25, acf_path, dpi=dpi)
     print(f"Saved ACF/PACF to {acf_path}")
 
-    # Train/test split
     print("Splitting train/test...")
     y_train, y_test, exog_train, exog_test = train_test_split(daily, test_ratio)
     print(f"Train: {len(y_train)} days, Test: {len(y_test)} days")
 
-    # auto_arima
-    print("Running auto_arima (may take a few minutes)...")
+    print("Running auto_arima (SARIMAX with exog, may take a few minutes)...")
     exog_arr = exog_train.values if exog_train is not None else None
     model = auto_arima(
         y_train,
@@ -217,9 +213,8 @@ def run_sarima_pipeline(
     )
     print(f"Best model: {model.order} x {model.seasonal_order}")
 
-    # Save model (include exog info for prediction)
     models_dir.mkdir(parents=True, exist_ok=True)
-    model_path = models_dir / "sarima_model.joblib"
+    model_path = models_dir / "sarimax_model.joblib"
     joblib.dump(
         {
             "model": model,
@@ -234,4 +229,4 @@ def run_sarima_pipeline(
 
 
 if __name__ == "__main__":
-    run_sarima_pipeline()
+    run_sarimax_pipeline()
