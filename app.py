@@ -17,7 +17,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-from lstm_model import has_tensorflow, train_lstm_on_daily_pm25
 
 # --- Cấu hình trang ---
 st.set_page_config(
@@ -118,12 +117,6 @@ def load_demo_models_metrics():
         return None
     with open(path, encoding="utf-8") as f:
         return json.load(f)
-
-
-@st.cache_resource(show_spinner=False)
-def run_lstm_cached(pm25_series, look_back=14, epochs=50):
-    """Cached wrapper to avoid retraining on unchanged inputs."""
-    return train_lstm_on_daily_pm25(pm25_series, look_back=look_back, epochs=epochs)
 
 
 def compute_error_metrics(actual: np.ndarray, predicted: np.ndarray) -> dict[str, float]:
@@ -314,7 +307,6 @@ elif page == "3. Dự báo & Phân tích Kịch bản":
     metrics_multi = load_demo_models_metrics()
     pred_df = load_demo_predictions()
     params = load_demo_params()
-    daily = load_daily_data()
 
     if cmp_df is None and pred_df is None:
         st.warning("Chưa có dữ liệu dự báo. Chạy: `python export_demo_data.py` rồi mở lại trang này.")

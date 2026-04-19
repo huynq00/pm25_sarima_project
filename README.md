@@ -42,7 +42,7 @@ Dự án phân tích chuỗi thời gian nồng độ **PM2.5** (bụi mịn), k
 - **pmdarima**, **statsmodels** — SARIMA và kiểm định chuỗi  
 - **matplotlib**, **seaborn** — hình ảnh báo cáo  
 - **streamlit**, **plotly** — dashboard  
-- **tensorflow** (tùy chọn) — LSTM trong `src/lstm_model.py` và notebook mở rộng  
+- **tensorflow** (tùy chọn) — LSTM / hybrid trong `export_demo_data.py` (so sánh đa mô hình) và `notebooks/05_multi_scene.ipynb`  
 - **xgboost** (tùy chọn) — baseline trong `notebooks/05_multi_scene.ipynb`
 
 Chi tiết phiên bản: `requirements.txt`.
@@ -166,7 +166,7 @@ pm25_sarima_project/
 │   ├── factor_analysis.py
 │   ├── sarima_model.py
 │   ├── evaluation.py
-│   └── lstm_model.py       # Tiện ích LSTM (pipeline phụ / thử nghiệm)
+│   └── multi_model_compare.py   # So sánh RF / XGB / LSTM / hybrid (dùng bởi export_demo_data)
 │
 ├── data/
 │   ├── raw/                # CSV gốc (PRSA)

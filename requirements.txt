@@ -27,8 +27,8 @@ scipy>=1.9.0
 streamlit>=1.28.0
 plotly>=5.18.0
 
-# Deep learning (LSTM)
+# LSTM / hybrid: multi_model_compare.py (export_demo_data) & notebooks/05_multi_scene
 tensorflow>=2.12.0
 
-# notebooks/05_multi_scene (RF / XGB baselines)
+# RF / XGB: multi_model_compare & notebooks/05_multi_scene
 xgboost>=1.7.0
